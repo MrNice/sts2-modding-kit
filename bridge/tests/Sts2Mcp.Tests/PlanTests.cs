@@ -298,4 +298,20 @@ public class BridgeBuildKeyTests
         File.WriteAllText(Path.Combine(dir.Path, "A.cs"), "class A { int x; }\n");
         Assert.NotEqual(first, BridgeBuilder.SourceHash(dir.Path));
     }
+
+    [Fact]
+    public void SourceHashWorksWhenTheSourceSitsUnderABinFolder()
+    {
+        // The tool run from a build output keeps its bridge source in .../bin/Release/net9.0/bridge-src.
+        using var root = new TempDir();
+        string src = Path.Combine(root.Path, "bin", "Release", "bridge-src");
+        Directory.CreateDirectory(Path.Combine(src, "obj"));
+        File.WriteAllText(Path.Combine(src, "A.cs"), "class A {}");
+        File.WriteAllText(Path.Combine(src, "obj", "junk.cs"), "1");
+        string first = BridgeBuilder.SourceHash(src);
+        File.WriteAllText(Path.Combine(src, "obj", "junk.cs"), "2");        // build leftovers don't count
+        Assert.Equal(first, BridgeBuilder.SourceHash(src));
+        File.WriteAllText(Path.Combine(src, "A.cs"), "class A { }");        // source does
+        Assert.NotEqual(first, BridgeBuilder.SourceHash(src));
+    }
 }

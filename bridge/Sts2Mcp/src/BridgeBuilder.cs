@@ -71,8 +71,9 @@ public static class BridgeBuilder
     public static string SourceHash(string dir)
     {
         using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        // Judge bin/obj by the path inside the source folder: the folder itself often sits under a bin directory.
         foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories)
-                     .Where(f => !f.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(p => p is "bin" or "obj"))
+                     .Where(f => !Path.GetRelativePath(dir, f).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(p => p is "bin" or "obj"))
                      .OrderBy(f => Path.GetRelativePath(dir, f).Replace('\\', '/'), StringComparer.Ordinal))
         {
             sha.AppendData(System.Text.Encoding.UTF8.GetBytes(Path.GetRelativePath(dir, file).Replace('\\', '/')));
