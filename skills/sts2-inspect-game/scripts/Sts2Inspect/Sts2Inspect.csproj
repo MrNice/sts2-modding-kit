@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Read-only inspection of Slay the Spire 2's game code (sts2.dll) and game pack (SlayTheSpire2.pck).
+    Needs only the .NET SDK: no NuGet packages. Build with any SDK that can target net9.0
+    (or override: dotnet build -p:TargetFramework=net10.0).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>sts2-inspect</AssemblyName>
+    <RootNamespace>Sts2Inspect</RootNamespace>
+    <Version>0.0.1</Version>
+  </PropertyGroup>
+</Project>

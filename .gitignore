@@ -1,0 +1,14 @@
+bin/
+obj/
+tools-out/
+*.user
+.vs/
+# Never commit game files extracted while inspecting
+loc/
+scenes/
+*.il
+*.pck
+sts2.dll
+out/
+old-scenes/
+new-scenes/
