@@ -18,10 +18,25 @@ readable by people.
 | [`sts2-version-audit`](skills/sts2-version-audit/SKILL.md) | check a mod against a new game version or the beta branch before players hit the breaks |
 | [`sts2-coop-mod-patterns`](skills/sts2-coop-mod-patterns/SKILL.md) | mod skeleton, messages between players, deterministic decisions, host-only lobby options, native-looking UI, custom run endings |
 | [`sts2-coop-testing`](skills/sts2-coop-testing/SKILL.md) | test a co-op mod on one PC with two offline game copies |
+| [`sts2-playtest`](skills/sts2-playtest/SKILL.md) | let an agent play-test through sts2-mcp: check, stage (hand you the moment to see) or watch, using fast plans |
 | [`sts2-localize-zh`](skills/sts2-localize-zh/SKILL.md) | add Simplified Chinese using the game's own terms; Chinese store pages and change notes |
 | [`sts2-mod-release`](skills/sts2-mod-release/SKILL.md) | version, change notes, zip, Steam Workshop (Mega Crit's ModUploader) and Nexus Mods |
 
-## Install
+## sts2-mcp: let an agent play-test your mod
+
+[`bridge/`](bridge/README.md) holds an MCP server, `sts2-mcp`, and a dev-only bridge mod. An agent launches local
+test copies of the game (one, or a co-op host plus joiners), reads each copy's state, presses buttons, plays cards,
+runs the game's developer console commands, takes screenshots and reads logs. It works in three ways: **check**
+(instant speed, the agent does it all), **stage** (the agent sets it up, you trigger the moment you want to see) and
+**watch** (normal speed). See [bridge/README.md](bridge/README.md).
+
+```
+dotnet tool install -g sts2-mcp
+sts2-mcp setup
+claude mcp add sts2 -- sts2-mcp
+```
+
+## Install the skills
 
 Copy or symlink the folders under `skills/` to where your agent looks for skills, for example:
 
@@ -47,7 +62,7 @@ write `sts2-inspect` for `dotnet tools-out/sts2-inspect.dll`.
 
 ## Status
 
-v0.0.1: first draft. Verified against game v0.107.1 (main) and v0.111.0 (beta), October 2026. The game is in
+v0.1.0: adds sts2-mcp and the bridge mod (see CHANGELOG). Skills are still a first draft. Verified against game v0.107.1 (main) and v0.111.0 (beta), October 2026. The game is in
 Early Access and changes often; member names in these skills will drift. Run `sts2-inspect has` before relying
 on one, and please open an issue when something has moved.
 

@@ -1,0 +1,10 @@
+{
+  "id": "Sts2Bridge",
+  "name": "Sts2 Bridge (dev only)",
+  "author": "PixeliciousLLC",
+  "description": "Developer tool for testing mods: lets a local tool read game state and press buttons. Only switches on in a game started with --force-steam=off (offline test profiles) or --sts2-bridge. Don't install it for normal play.",
+  "version": "0.1.0",
+  "has_pck": false,
+  "has_dll": true,
+  "affects_gameplay": false
+}

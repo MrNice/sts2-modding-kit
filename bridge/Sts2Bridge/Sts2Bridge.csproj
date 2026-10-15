@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Sts2Bridge: a dev-only Slay the Spire 2 mod that lets tools (the sts2-mcp server, or anything that speaks its
+    line-JSON protocol) read game state and press buttons in a game copy started for local testing.
+
+    It is built on your machine against your installed game, by `sts2-mcp setup` (or by hand):
+      dotnet build -c Release -p:Sts2Dir="C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2"
+    It needs no NuGet packages and no Godot SDK: only sts2.dll and GodotSharp.dll from the game.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <AssemblyName>Sts2Bridge</AssemblyName>
+    <RootNamespace>Sts2Bridge</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Version>0.1.0</Version>
+
+    <Sts2Dir Condition="'$(Sts2Dir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2</Sts2Dir>
+    <Sts2DataDir Condition="'$(Sts2DataDir)' == ''">$(Sts2Dir)\data_sts2_windows_x86_64</Sts2DataDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/**/*.cs" />
+    <Compile Include="../Protocol/**/*.cs" />
+    <None Include="Sts2Bridge.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="sts2">
+      <HintPath>$(Sts2DataDir)/sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="GodotSharp">
+      <HintPath>$(Sts2DataDir)/GodotSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CheckGameFound" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(Sts2DataDir)/sts2.dll')"
+           Text="sts2.dll not found in $(Sts2DataDir). Pass -p:Sts2Dir=&quot;path\to\Slay the Spire 2&quot;." />
+  </Target>
+</Project>

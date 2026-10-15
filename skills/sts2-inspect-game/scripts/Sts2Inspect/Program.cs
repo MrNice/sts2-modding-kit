@@ -13,8 +13,13 @@ namespace Sts2Inspect;
 /// sts2-inspect: read-only views of Slay the Spire 2's code and game pack, for mod authors.
 /// Nothing here runs or modifies the game; it reads files from your own install.
 /// </summary>
-internal static class Program
+public static class Program
 {
+    // Where output goes. The command-line tool writes to the console; sts2-mcp calls Run with its own writers.
+    private static TextWriter Out = Console.Out;
+    private static TextWriter Err = Console.Error;
+    private static readonly object RunLock = new();
+
     private const string Usage = """
         sts2-inspect 0.0.1: look inside Slay the Spire 2 (read-only)
 
@@ -40,30 +45,44 @@ internal static class Program
           pck extract <pck> <regex> <outDir>       copy matching files out (scenes .tscn, localization .json, ...)
         """;
 
-    private static int Main(string[] args)
+    private static int Main(string[] args) => Run(args, Console.Out, Console.Error);
+
+    /// <summary>Runs one command with output going to the given writers (one command at a time).</summary>
+    public static int Run(string[] args, TextWriter output, TextWriter error)
+    {
+        lock (RunLock)
+        {
+            Out = output;
+            Err = error;
+            try { return RunCore(args); }
+            finally { Out = Console.Out; Err = Console.Error; }
+        }
+    }
+
+    private static int RunCore(string[] args)
     {
         try
         {
-            if (args.Length == 0) { Console.WriteLine(Usage); return 1; }
+            if (args.Length == 0) { Out.WriteLine(Usage); return 1; }
             switch (args[0])
             {
-                case "types" when args.Length >= 3: Types(Open(args[1]), args[2..], Console.Out); return 0;
+                case "types" when args.Length >= 3: Types(Open(args[1]), args[2..], Out); return 0;
                 case "il" when args.Length >= 3: Il(args[1], args[2], args.Length > 3 ? args[3] : null); return 0;
                 case "has" when args.Length >= 3: return Has(Open(args[1]), args[2..]);
-                case "refs" when args.Length >= 2: foreach (var r in Refs(args[1], args.Length > 2 ? args[2] : "MegaCrit")) Console.WriteLine(r); return 0;
+                case "refs" when args.Length >= 2: foreach (var r in Refs(args[1], args.Length > 2 ? args[2] : "MegaCrit")) Out.WriteLine(r); return 0;
                 case "typediff" when args.Length >= 4: return TypeDiff(args[1], args[2], args[3..]);
                 case "ildiff" when args.Length >= 4: return IlDiff(args[1], args[2], args[3..].Select(a => new Regex("^(?:" + a + ")$")).ToList(), null);
                 case "audit" when args.Length >= 4: return Audit(args[1], args[2], args[3], args.Length > 4 ? args[4] : null);
                 case "pck" when args.Length >= 3 && args[1] == "list": PckList(args[2], args.Length > 3 ? args[3] : null); return 0;
                 case "pck" when args.Length >= 5 && args[1] == "extract": PckExtract(args[2], args[3], args[4]); return 0;
-                default: Console.WriteLine(Usage); return 1;
+                default: Out.WriteLine(Usage); return 1;
             }
         }
         catch (Exception ex) when (ex is IOException or BadImageFormatException or InvalidDataException or UnauthorizedAccessException
                                        or ArgumentException or InvalidOperationException)
         {
             // Wrong file, not a .NET assembly, bad regex, unreadable pack: say so plainly.
-            Console.Error.WriteLine($"error: {ex.Message}");
+            Err.WriteLine($"error: {ex.Message}");
             return 2;
         }
     }
@@ -241,12 +260,12 @@ internal static class Program
         foreach (var spec in specs)
         {
             var (members, typeFound) = Lookup(d, types, spec);
-            if (!typeFound) { Console.WriteLine($"MISSING TYPE  {spec}"); missing++; continue; }
-            if (members.Count == 0) { Console.WriteLine($"MISSING       {spec}"); missing++; continue; }
+            if (!typeFound) { Out.WriteLine($"MISSING TYPE  {spec}"); missing++; continue; }
+            if (members.Count == 0) { Out.WriteLine($"MISSING       {spec}"); missing++; continue; }
             int methods = members.Count(m => m.StartsWith("method "));
-            Console.WriteLine($"{(methods > 1 ? "ok (overloads)" : "ok"),-13} {spec}");
+            Out.WriteLine($"{(methods > 1 ? "ok (overloads)" : "ok"),-13} {spec}");
             if (methods > 1)
-                foreach (var m in members) Console.WriteLine($"                {m}   <- patching by name alone is ambiguous");
+                foreach (var m in members) Out.WriteLine($"                {m}   <- patching by name alone is ambiguous");
         }
         return missing == 0 ? 0 : 3;
     }
@@ -437,8 +456,8 @@ internal static class Program
 
         static void Print(string key, List<string> lines)
         {
-            Console.WriteLine("=== " + key);
-            foreach (var l in lines) Console.WriteLine("  " + l);
+            Out.WriteLine("=== " + key);
+            foreach (var l in lines) Out.WriteLine("  " + l);
         }
     }
 
@@ -477,24 +496,24 @@ internal static class Program
                 others.Add(key);
                 continue;
             }
-            if (!inB) { Console.WriteLine($"REMOVED  {key}"); continue; }
-            if (!inA) { Console.WriteLine($"NEW      {key}"); continue; }
+            if (!inB) { Out.WriteLine($"REMOVED  {key}"); continue; }
+            if (!inA) { Out.WriteLine($"NEW      {key}"); continue; }
             var left = x.SelectMany(s => s.Split('\n')).ToList();
             var right = y.SelectMany(s => s.Split('\n')).ToList();
             var gone = left.Except(right).Take(6).ToList();
             var added = right.Except(left).Take(6).ToList();
-            Console.WriteLine($"CHANGED  {key}");
-            foreach (var l in gone) Console.WriteLine($"     - {l}");
-            foreach (var l in added) Console.WriteLine($"     + {l}");
+            Out.WriteLine($"CHANGED  {key}");
+            foreach (var l in gone) Out.WriteLine($"     - {l}");
+            foreach (var l in added) Out.WriteLine($"     + {l}");
         }
         if (others.Count > 0)
         {
-            Console.WriteLine($"... and {others.Count} other changed method(s) in those types (the mod doesn't call or patch them directly):");
+            Out.WriteLine($"... and {others.Count} other changed method(s) in those types (the mod doesn't call or patch them directly):");
             foreach (var group in others.GroupBy(k => k.Split("::")[0].Split('+')[0]).OrderBy(g => g.Key))
-                Console.WriteLine($"     {group.Key}: {group.Count()}");
-            Console.WriteLine("   see them with: sts2-inspect ildiff <old.dll> <new.dll> 'TypeName.*'");
+                Out.WriteLine($"     {group.Key}: {group.Count()}");
+            Out.WriteLine("   see them with: sts2-inspect ildiff <old.dll> <new.dll> 'TypeName.*'");
         }
-        Console.WriteLine($"{changed} method(s) differ");
+        Out.WriteLine($"{changed} method(s) differ");
         return 0;
     }
 
@@ -533,19 +552,19 @@ internal static class Program
         int n = 0;
         foreach (var type in a.Keys.Union(b.Keys).OrderBy(k => k, StringComparer.Ordinal))
         {
-            if (!b.TryGetValue(type, out var now)) { Console.WriteLine($"REMOVED TYPE {type}"); n++; continue; }
-            if (!a.TryGetValue(type, out var was)) { Console.WriteLine($"NEW TYPE {type}"); n++; continue; }
+            if (!b.TryGetValue(type, out var now)) { Out.WriteLine($"REMOVED TYPE {type}"); n++; continue; }
+            if (!a.TryGetValue(type, out var was)) { Out.WriteLine($"NEW TYPE {type}"); n++; continue; }
             var gone = was.Lines.Except(now.Lines, StringComparer.Ordinal).ToList();
             var added = now.Lines.Except(was.Lines, StringComparer.Ordinal).ToList();
             bool header = was.Header != now.Header;
             if (!header && gone.Count == 0 && added.Count == 0) continue;
-            Console.WriteLine(now.Header);
-            if (header) Console.WriteLine($"  base type was: {was.Header.Split(" : ").ElementAtOrDefault(1)}");
-            foreach (var l in gone) Console.WriteLine("- " + l);
-            foreach (var l in added) Console.WriteLine("+ " + l);
+            Out.WriteLine(now.Header);
+            if (header) Out.WriteLine($"  base type was: {was.Header.Split(" : ").ElementAtOrDefault(1)}");
+            foreach (var l in gone) Out.WriteLine("- " + l);
+            foreach (var l in added) Out.WriteLine("+ " + l);
             n += gone.Count + added.Count + (header ? 1 : 0);
         }
-        Console.WriteLine($"{n} difference(s)");
+        Out.WriteLine($"{n} difference(s)");
         return 0;
     }
 
@@ -574,7 +593,7 @@ internal static class Program
         var oldD = Open(oldDll);
         var newD = Open(newDll);
 
-        Console.WriteLine("# 1. Members the mod was compiled against (signature must still exist)");
+        Out.WriteLine("# 1. Members the mod was compiled against (signature must still exist)");
         var refs = Refs(modDll, "MegaCrit");
         var newDefs = Definitions(newD);
         var oldDefs = Definitions(oldD);
@@ -585,13 +604,13 @@ internal static class Program
             if (newDefs.Contains(r)) continue;
             // Only report what the old game had: anything else is a reference into a generic instantiation we can't key.
             if (!oldDefs.Contains(r)) continue;
-            Console.WriteLine($"  BROKEN  {r}");
+            Out.WriteLine($"  BROKEN  {r}");
             broken++;
         }
-        Console.WriteLine(broken == 0 ? "  all present" : $"  {broken} reference(s) would fail at runtime (MissingMethodException / MissingFieldException)");
+        Out.WriteLine(broken == 0 ? "  all present" : $"  {broken} reference(s) would fail at runtime (MissingMethodException / MissingFieldException)");
 
-        Console.WriteLine();
-        Console.WriteLine("# 2. Name-based targets in the source (Harmony patches, reflection)");
+        Out.WriteLine();
+        Out.WriteLine("# 2. Name-based targets in the source (Harmony patches, reflection)");
         int nameIssues = 0;
         var focus = new HashSet<string>(StringComparer.Ordinal);
         foreach (var r in refs)
@@ -601,7 +620,7 @@ internal static class Program
             var name = Regex.Match(r[(sep + 2)..], @"(?:^field \S+ |^\S+ )([^ (]+)").Groups[1].Value;
             focus.Add($"{type}::{name}");
         }
-        if (sourceDir is null) Console.WriteLine("  SKIPPED: no source folder given, so patch and reflection targets were not checked");
+        if (sourceDir is null) Out.WriteLine("  SKIPPED: no source folder given, so patch and reflection targets were not checked");
         else
         {
             var oldTypes = TypesBySimpleAndFullName(oldD);
@@ -641,15 +660,15 @@ internal static class Program
                 else if (!before.SequenceEqual(after)) verdict = after.Count(x => x.StartsWith("method ")) > 1 ? "CHANGED, NOW OVERLOADED" : "CHANGED";
                 else continue;
                 nameIssues++;
-                Console.WriteLine($"  {verdict,-24} {t}");
-                foreach (var b in before.Except(after)) Console.WriteLine($"      was: {b}");
-                foreach (var a in after.Except(before)) Console.WriteLine($"      now: {a}");
+                Out.WriteLine($"  {verdict,-24} {t}");
+                foreach (var b in before.Except(after)) Out.WriteLine($"      was: {b}");
+                foreach (var a in after.Except(before)) Out.WriteLine($"      now: {a}");
             }
-            Console.WriteLine(nameIssues == 0 ? $"  {targets.Count} target(s) checked, all unchanged" : $"  {nameIssues} target(s) need a look");
+            Out.WriteLine(nameIssues == 0 ? $"  {targets.Count} target(s) checked, all unchanged" : $"  {nameIssues} target(s) need a look");
         }
 
-        Console.WriteLine();
-        Console.WriteLine("# 3. Game methods the mod calls or patches whose code changed (behaviour may differ)");
+        Out.WriteLine();
+        Out.WriteLine("# 3. Game methods the mod calls or patches whose code changed (behaviour may differ)");
         var types = refs.Select(r => Short(r[..r.IndexOf("::", StringComparison.Ordinal)]).Split('<')[0].Split('+')[0]).ToHashSet(StringComparer.Ordinal);
         foreach (var f in focus) types.Add(f.Split("::")[0]);
         IlDiff(oldDll, newDll, new List<Regex>(), types, focus);
@@ -698,7 +717,7 @@ internal static class Program
         using var f = File.OpenRead(pck);
         var rx = pattern is null ? null : new Regex(pattern);
         foreach (var e in PckIndex(f).Where(e => rx is null || rx.IsMatch(e.Path)))
-            Console.WriteLine($"{e.Path}\t{e.Size}");
+            Out.WriteLine($"{e.Path}\t{e.Size}");
     }
 
     private static void PckExtract(string pck, string pattern, string outDir)
@@ -725,6 +744,6 @@ internal static class Program
             }
             n++;
         }
-        Console.WriteLine($"{n} file(s) extracted to {outDir}");
+        Out.WriteLine($"{n} file(s) extracted to {outDir}");
     }
 }

@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    sts2-mcp: an MCP server (stdio) for testing Slay the Spire 2 mods. Launches local co-op test copies of the game,
+    reads their state and presses their buttons through the Sts2Bridge mod, runs dev console commands, and offers
+    the sts2-inspect tools. Installs as a .NET tool:  dotnet tool install -g sts2-mcp
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <AssemblyName>sts2-mcp</AssemblyName>
+    <RootNamespace>Sts2Mcp</RootNamespace>
+    <Version>0.1.0</Version>
+
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>sts2-mcp</ToolCommandName>
+    <PackageId>sts2-mcp</PackageId>
+    <Authors>PixeliciousLLC</Authors>
+    <Description>MCP server for testing Slay the Spire 2 mods: launch local co-op test copies, read game state, press buttons, run dev console commands, and inspect the game's code. Fan-made; not affiliated with Mega Crit.</Description>
+    <PackageTags>mcp;slay-the-spire-2;modding;sts2</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/MrNice/sts2-modding-kit</RepositoryUrl>
+    <PackageOutputPath>../../artifacts</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.21" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../Protocol/**/*.cs" />
+    <ProjectReference Include="../../skills/sts2-inspect-game/scripts/Sts2Inspect/Sts2Inspect.csproj" />
+  </ItemGroup>
+
+  <!-- The bridge mod ships as source and is built on the user's machine against their installed game. -->
+  <ItemGroup>
+    <None Include="../Sts2Bridge/Sts2Bridge.csproj;../Sts2Bridge/Sts2Bridge.json"
+          Link="bridge-src/Sts2Bridge/%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../Sts2Bridge/src/**/*.cs"
+          Link="bridge-src/Sts2Bridge/src/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../Protocol/**/*.cs"
+          Link="bridge-src/Protocol/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
