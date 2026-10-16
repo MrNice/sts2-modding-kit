@@ -1,6 +1,7 @@
 # Publishes sts2-mcp to nuget.org with Trusted Publishing (GitHub OIDC; no stored API key).
 # Runs when a tag like mcp-v0.1.0 is pushed. The tag's version must match <Version> in bridge/Sts2Mcp/Sts2Mcp.csproj.
 # The nuget.org policy is tied to this file name (release-mcp.yml): don't rename it.
+# One job, no artifacts: the package goes straight from the build to nuget.org (no Actions storage used).
 name: release-mcp
 
 on:
@@ -8,9 +9,10 @@ on:
     tags: ["mcp-v*"]
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
@@ -30,27 +32,6 @@ jobs:
 
       - name: Pack
         run: dotnet pack bridge/Sts2Mcp -c Release -o artifacts
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nupkg
-          path: artifacts/*.nupkg
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: nupkg
-          path: artifacts
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "9.0.x"
 
       # Exchanges the workflow's OIDC token for a short-lived nuget.org key (valid about an hour).
       - name: NuGet login
